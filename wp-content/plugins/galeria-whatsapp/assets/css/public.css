@@ -1,0 +1,198 @@
+/**
+ * Estilos del Frontend
+ * @package Galeria_WhatsApp
+ */
+
+.galeria-whatsapp-frontend {
+    padding: 20px 0;
+}
+
+/* Sección de búsqueda */
+.galeria-search-section {
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.galeria-search-section h3 {
+    margin-bottom: 15px;
+}
+
+.galeria-search-box {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.galeria-search-box input {
+    padding: 12px 20px;
+    font-size: 16px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    min-width: 250px;
+}
+
+.galeria-search-box button {
+    padding: 12px 30px;
+    font-size: 16px;
+    background: #2271b1;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.galeria-search-box button:hover {
+    background: #135e96;
+}
+
+/* Filtro de carpetas */
+.galeria-folder-filter {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.galeria-folder-btn {
+    padding: 10px 20px;
+    background: #f0f0f1;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.galeria-folder-btn:hover {
+    background: #e0e0e1;
+}
+
+.galeria-folder-btn.active {
+    background: #2271b1;
+    color: white;
+    border-color: #2271b1;
+}
+
+/* Grid de fotos */
+.galeria-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 25px;
+}
+
+.galeria-item {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.galeria-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+}
+
+.galeria-item.highlight {
+    animation: highlight-pulse 1s ease-in-out;
+}
+
+@keyframes highlight-pulse {
+    0%, 100% {
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    50% {
+        box-shadow: 0 0 20px 5px rgba(34, 113, 177, 0.6);
+    }
+}
+
+/* Wrapper de imagen */
+.galeria-image-wrapper {
+    position: relative;
+    overflow: hidden;
+}
+
+.galeria-image-wrapper img {
+    width: 100%;
+    height: 300px;
+    object-fit: cover;
+    display: block;
+}
+
+/* Overlay al hacer hover */
+.galeria-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 15px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.galeria-item:hover .galeria-overlay {
+    opacity: 1;
+}
+
+/* ID de foto */
+.galeria-id {
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+/* Botón de WhatsApp */
+.galeria-whatsapp-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #25D366;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 25px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background 0.3s;
+    align-self: flex-start;
+}
+
+.galeria-whatsapp-btn:hover {
+    background: #128C7E;
+    color: white;
+}
+
+/* Mensajes de estado */
+.no-photos {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-size: 18px;
+}
+
+.no-results {
+    text-align: center;
+    padding: 40px;
+    color: #dc3232;
+    font-size: 18px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .galeria-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 15px;
+    }
+    
+    .galeria-image-wrapper img {
+        height: 200px;
+    }
+}
