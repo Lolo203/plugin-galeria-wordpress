@@ -26,9 +26,9 @@ jQuery(document).ready(function($) {
         var breadcrumb = '<div class="breadcrumb">';
         
         if (folderPath.length === 0) {
-            breadcrumb += '<span class="breadcrumb-item" data-id="0">🏠 Raíz</span>';
+            breadcrumb += '<span class="breadcrumb-item" data-id="0">📁 Raíz</span>';
         } else {
-            breadcrumb += '<span class="breadcrumb-item" data-id="0">🏠 Raíz</span>';
+            breadcrumb += '<span class="breadcrumb-item" data-id="0">📁 Raíz</span>';
             folderPath.forEach(function(folder) {
                 breadcrumb += '<span class="breadcrumb-separator">›</span>';
                 breadcrumb += '<span class="breadcrumb-item" data-id="' + folder.id + '">' + folder.name + '</span>';
@@ -211,7 +211,7 @@ jQuery(document).ready(function($) {
         
         // Carpeta "Todas"
         var allHtml = '<div class="folder-item ' + (currentFolder === 0 ? 'active' : '') + '" data-id="0" data-parent="0">' +
-            '<span class="folder-name">🏠 Todas las fotos</span>' +
+            '<span class="folder-name">📁 Todas las fotos</span>' +
             '<div class="folder-actions"><span class="folder-count"></span></div>' +
             '</div>';
         list.append(allHtml);
@@ -320,7 +320,7 @@ jQuery(document).ready(function($) {
     $(document).on('click', '.delete-folder', function(e) {
         e.stopPropagation();
         
-        if (!confirm('⌫ ¿Eliminar carpeta y subcarpetas?')) return;
+        if (!confirm('❌ ¿Eliminar carpeta y subcarpetas?')) return;
         
         var folderId = $(this).data('id');
         
@@ -374,8 +374,10 @@ jQuery(document).ready(function($) {
     function displayPhotos(photos) {
         var grid = $('#photos-grid');
         grid.empty();
+        
+        // Resetear selección
         selectedPhotos = [];
-        updateSelectionUI();
+        updateBulkActionsBar();
         
         if (!photos || photos.length === 0) {
             grid.html('<p style="grid-column: 1/-1; text-align: center; padding: 40px;">No hay fotos.</p>');
@@ -386,9 +388,7 @@ jQuery(document).ready(function($) {
             var folderTag = photo.folder_path ? '<span class="photo-folder">📂 ' + photo.folder_path + '</span>' : '';
             
             var photoHtml = '<div class="photo-item" data-id="' + photo.id + '">' +
-                '<div class="photo-select-overlay">' +
                 '<input type="checkbox" class="photo-checkbox" data-id="' + photo.id + '">' +
-                '</div>' +
                 '<button class="delete-photo" data-id="' + photo.id + '">✕</button>' +
                 '<img src="' + photo.image_url + '">' +
                 '<div class="photo-info">' +
@@ -401,7 +401,21 @@ jQuery(document).ready(function($) {
     }
     
     /**
-     * Seleccionar/deseleccionar foto individual
+     * Actualizar barra de acciones masivas
+     */
+    function updateBulkActionsBar() {
+        var count = selectedPhotos.length;
+        $('#selected-count').text(count);
+        
+        if (count > 0) {
+            $('#bulk-actions-bar').addClass('active');
+        } else {
+            $('#bulk-actions-bar').removeClass('active');
+        }
+    }
+    
+    /**
+     * Checkbox de foto individual
      */
     $(document).on('change', '.photo-checkbox', function() {
         var photoId = parseInt($(this).data('id'));
@@ -410,92 +424,71 @@ jQuery(document).ready(function($) {
         if ($(this).is(':checked')) {
             if (!selectedPhotos.includes(photoId)) {
                 selectedPhotos.push(photoId);
+                photoItem.addClass('selected');
             }
-            photoItem.addClass('selected');
         } else {
             selectedPhotos = selectedPhotos.filter(id => id !== photoId);
             photoItem.removeClass('selected');
         }
         
-        updateSelectionUI();
+        updateBulkActionsBar();
     });
     
     /**
      * Seleccionar todas las fotos
      */
-    $('#select-all-photos').on('change', function() {
-        var isChecked = $(this).is(':checked');
-        
-        $('.photo-checkbox').prop('checked', isChecked);
-        
-        if (isChecked) {
-            selectedPhotos = [];
-            $('.photo-checkbox').each(function() {
-                var photoId = parseInt($(this).data('id'));
-                selectedPhotos.push(photoId);
-                $(this).closest('.photo-item').addClass('selected');
-            });
-        } else {
-            selectedPhotos = [];
-            $('.photo-item').removeClass('selected');
-        }
-        
-        updateSelectionUI();
+    $('#select-all-btn').on('click', function() {
+        $('.photo-checkbox').prop('checked', true).trigger('change');
     });
     
     /**
-     * Actualizar interfaz de selección
+     * Deseleccionar todas las fotos
      */
-    function updateSelectionUI() {
-        var count = selectedPhotos.length;
-        
-        if (count > 0) {
-            $('.bulk-actions-bar').slideDown();
-            $('.selected-count').text(count + ' foto' + (count !== 1 ? 's' : '') + ' seleccionada' + (count !== 1 ? 's' : ''));
-            $('#delete-selected-btn').prop('disabled', false);
-        } else {
-            $('.bulk-actions-bar').slideUp();
-            $('#delete-selected-btn').prop('disabled', true);
-            $('#select-all-photos').prop('checked', false);
-        }
-    }
+    $('#deselect-all-btn').on('click', function() {
+        $('.photo-checkbox').prop('checked', false).trigger('change');
+    });
     
     /**
      * Eliminar fotos seleccionadas
      */
     $('#delete-selected-btn').on('click', function() {
-        var count = selectedPhotos.length;
-        
-        if (count === 0) return;
-        
-        if (!confirm('⌫ ¿Eliminar ' + count + ' foto(s) seleccionada(s)? Esta acción no se puede deshacer.')) {
+        if (selectedPhotos.length === 0) {
+            alert('⚠️ No hay fotos seleccionadas');
             return;
         }
         
-        // Deshabilitar botón durante el proceso
-        $(this).prop('disabled', true).text('Eliminando...');
+        var count = selectedPhotos.length;
+        if (!confirm('❌ ¿Eliminar ' + count + ' foto(s) seleccionadas?')) {
+            return;
+        }
+        
+        var btn = $(this);
+        btn.prop('disabled', true).text('⏳ Eliminando...');
         
         $.ajax({
             url: galeriaAdmin.ajaxUrl,
             type: 'POST',
             data: {
-                action: 'delete_multiple_photos',
+                action: 'delete_multiple_gallery_photos',
                 nonce: galeriaAdmin.nonce,
                 photo_ids: selectedPhotos
             },
             success: function(response) {
                 if (response.success) {
-                    alert('✅ ' + response.data.deleted_count + ' foto(s) eliminada(s) correctamente');
+                    alert('✅ ' + response.data.message);
                     loadPhotos();
                     loadFolders();
+                    selectedPhotos = [];
+                    updateBulkActionsBar();
                 } else {
-                    alert('❌ Error: ' + (response.data || 'No se pudieron eliminar las fotos'));
-                    $('#delete-selected-btn').prop('disabled', false).html('<span class="dashicons dashicons-trash"></span> Eliminar seleccionadas');
+                    alert('❌ Error: ' + response.data);
                 }
             },
             error: function() {
-                alert('❌ Error al conectar con el servidor');
-                $('#delete-selected-btn').prop('disabled', false).html('<span class="dashicons dashicons-trash"></span> Eliminar seleccionadas');
+                alert('❌ Error al eliminar fotos');
+            },
+            complete: function() {
+                btn.prop('disabled', false).text('🗑️ Eliminar seleccionadas');
             }
         });
     });
@@ -504,7 +497,7 @@ jQuery(document).ready(function($) {
      * Eliminar foto individual
      */
     $(document).on('click', '.delete-photo', function() {
-        if (!confirm('⌫ ¿Eliminar foto?')) return;
+        if (!confirm('❌ ¿Eliminar foto?')) return;
         
         var dbId = $(this).data('id');
         var photoItem = $(this).closest('.photo-item');
@@ -521,9 +514,6 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     photoItem.fadeOut(300, function() {
                         $(this).remove();
-                        // Actualizar selección si la foto estaba seleccionada
-                        selectedPhotos = selectedPhotos.filter(id => id !== dbId);
-                        updateSelectionUI();
                     });
                     loadFolders();
                 }

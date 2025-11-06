@@ -164,84 +164,63 @@
     color: #ffcccc;
 }
 
-/* Header de fotos con barra de acciones múltiples */
-.photos-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 15px;
-    margin-bottom: 15px;
-}
-
-.photos-header h2 {
-    margin: 0;
-}
-
-/* Barra de acciones múltiples */
+/* Barra de acciones masivas */
 .bulk-actions-bar {
-    display: flex;
+    display: none;
+    background: #f0f0f1;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin: 20px 0;
     align-items: center;
     gap: 15px;
-    padding: 12px 20px;
-    background: #f0f0f1;
-    border-radius: 6px;
-    border: 2px solid #2271b1;
+    flex-wrap: wrap;
 }
 
-.select-all-container {
+.bulk-actions-bar.active {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    margin: 0;
 }
 
-.select-all-container input[type="checkbox"] {
-    margin: 0;
-    cursor: pointer;
-}
-
-.select-all-container span {
-    font-weight: 500;
-    user-select: none;
-}
-
-.selected-count {
+.bulk-actions-bar .selected-count {
+    font-weight: bold;
     color: #2271b1;
-    font-weight: 600;
-    padding: 4px 12px;
-    background: white;
-    border-radius: 4px;
+    font-size: 16px;
 }
 
-#delete-selected-btn {
+.bulk-actions-bar .bulk-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.bulk-actions-bar .select-all-btn {
+    background: #2271b1;
+    color: white;
+}
+
+.bulk-actions-bar .select-all-btn:hover {
+    background: #135e96;
+}
+
+.bulk-actions-bar .deselect-all-btn {
+    background: #666;
+    color: white;
+}
+
+.bulk-actions-bar .deselect-all-btn:hover {
+    background: #444;
+}
+
+.bulk-actions-bar .delete-selected-btn {
     background: #dc3232;
     color: white;
-    border: none;
-    padding: 8px 16px;
-    cursor: pointer;
-    border-radius: 4px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: background 0.2s;
+    margin-left: auto;
 }
 
-#delete-selected-btn:hover:not(:disabled) {
+.bulk-actions-bar .delete-selected-btn:hover {
     background: #a00;
-}
-
-#delete-selected-btn:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-
-#delete-selected-btn .dashicons {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
 }
 
 /* Grid de fotos */
@@ -258,13 +237,12 @@
     border-radius: 8px;
     overflow: hidden;
     background: #f9f9f9;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .photo-item.selected {
     border: 3px solid #2271b1;
-    box-shadow: 0 0 15px rgba(34, 113, 177, 0.3);
-    transform: scale(1.02);
+    box-shadow: 0 0 10px rgba(34, 113, 177, 0.5);
 }
 
 .photo-item img {
@@ -274,28 +252,17 @@
     display: block;
 }
 
-/* Overlay de selección */
-.photo-select-overlay {
+/* Checkbox de selección */
+.photo-checkbox {
     position: absolute;
     top: 10px;
     left: 10px;
-    z-index: 10;
-}
-
-.photo-select-overlay input[type="checkbox"] {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     cursor: pointer;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-}
-
-.photo-select-overlay input[type="checkbox"]:hover {
-    opacity: 1;
-}
-
-.photo-item.selected .photo-select-overlay input[type="checkbox"] {
-    opacity: 1;
+    z-index: 10;
+    accent-color: #2271b1;
+    transform: scale(1.3);
 }
 
 /* Info de foto */
@@ -328,11 +295,11 @@
     display: block;
 }
 
-/* Botón eliminar foto individual */
+/* Botón eliminar foto */
 .delete-photo {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 5px;
+    right: 5px;
     background: #dc3232;
     color: white;
     border: none;
@@ -347,7 +314,6 @@
     transition: opacity 0.3s;
     font-size: 18px;
     line-height: 1;
-    z-index: 5;
 }
 
 .photo-item:hover .delete-photo {
@@ -407,21 +373,4 @@
 
 .breadcrumb-separator {
     color: #666;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .photos-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .bulk-actions-bar {
-        width: 100%;
-        flex-wrap: wrap;
-    }
-    
-    .photos-grid {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    }
 }

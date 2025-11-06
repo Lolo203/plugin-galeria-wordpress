@@ -22,7 +22,7 @@ class Galeria_WhatsApp_Admin_Ajax {
         add_action('wp_ajax_upload_gallery_photo', array($this, 'upload_photo'));
         add_action('wp_ajax_get_gallery_photos', array($this, 'get_photos'));
         add_action('wp_ajax_delete_gallery_photo', array($this, 'delete_photo'));
-        add_action('wp_ajax_delete_multiple_photos', array($this, 'delete_multiple_photos'));
+        add_action('wp_ajax_delete_multiple_gallery_photos', array($this, 'delete_multiple_photos'));
         add_action('wp_ajax_create_gallery_folder', array($this, 'create_folder'));
         add_action('wp_ajax_get_gallery_folders', array($this, 'get_folders'));
         add_action('wp_ajax_delete_gallery_folder', array($this, 'delete_folder'));
@@ -104,24 +104,31 @@ class Galeria_WhatsApp_Admin_Ajax {
         
         $photo_ids = isset($_POST['photo_ids']) ? $_POST['photo_ids'] : array();
         
-        if (!is_array($photo_ids) || empty($photo_ids)) {
-            wp_send_json_error('No se proporcionaron IDs de fotos');
+        if (empty($photo_ids) || !is_array($photo_ids)) {
+            wp_send_json_error('No se especificaron fotos para eliminar');
             return;
         }
         
-        // Sanitizar los IDs
-        $photo_ids = array_map('intval', $photo_ids);
+        $deleted_count = 0;
+        $errors = 0;
         
-        $result = $this->photo_manager->delete_multiple_photos($photo_ids);
+        foreach ($photo_ids as $db_id) {
+            $db_id = intval($db_id);
+            if ($this->photo_manager->delete_photo($db_id)) {
+                $deleted_count++;
+            } else {
+                $errors++;
+            }
+        }
         
-        if ($result['success']) {
+        if ($deleted_count > 0) {
             wp_send_json_success(array(
-                'message' => $result['deleted_count'] . ' foto(s) eliminada(s)',
-                'deleted_count' => $result['deleted_count'],
-                'failed_count' => $result['failed_count']
+                'message' => "$deleted_count foto(s) eliminadas",
+                'deleted' => $deleted_count,
+                'errors' => $errors
             ));
         } else {
-            wp_send_json_error('Error al eliminar fotos');
+            wp_send_json_error('No se pudo eliminar ninguna foto');
         }
     }
     

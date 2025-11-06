@@ -39,18 +39,22 @@ if (!defined('ABSPATH')) {
     
     <hr>
     
-    <div class="photos-header">
-        <h2>Fotos</h2>
-        <div class="bulk-actions-bar" style="display: none;">
-            <label class="select-all-container">
-                <input type="checkbox" id="select-all-photos">
-                <span>Seleccionar todas</span>
-            </label>
-            <span class="selected-count">0 fotos seleccionadas</span>
-            <button id="delete-selected-btn" class="button button-danger" disabled>
-                <span class="dashicons dashicons-trash"></span> Eliminar seleccionadas
-            </button>
-        </div>
+    <h2>Fotos</h2>
+    
+    <!-- Barra de acciones masivas -->
+    <div class="bulk-actions-bar" id="bulk-actions-bar">
+        <span class="selected-count">
+            <span id="selected-count">0</span> foto(s) seleccionadas
+        </span>
+        <button class="bulk-btn select-all-btn" id="select-all-btn">
+            ✓ Seleccionar todas
+        </button>
+        <button class="bulk-btn deselect-all-btn" id="deselect-all-btn">
+            ✕ Deseleccionar todas
+        </button>
+        <button class="bulk-btn delete-selected-btn" id="delete-selected-btn">
+            🗑️ Eliminar seleccionadas
+        </button>
     </div>
     
     <div id="photos-grid" class="photos-grid">
