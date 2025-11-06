@@ -3,7 +3,7 @@
  * Plugin Name: Galería con WhatsApp
  * Plugin URI: https://tusitio.com
  * Description: Galería simple para subir fotos con ID único y botón de WhatsApp (con carpetas anidadas)
- * Version: 3.1.0
+ * Version: 3.2.1
  * Author: Lorenzo Sayes
  * Text Domain: galeria-whatsapp
  * Requires at least: 5.0
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Definir constantes del plugin
-define('GALERIA_WHATSAPP_VERSION', '3.1.0');
+define('GALERIA_WHATSAPP_VERSION', '3.2.1');
 define('GALERIA_WHATSAPP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('GALERIA_WHATSAPP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('GALERIA_WHATSAPP_PLUGIN_BASENAME', plugin_basename(__FILE__));

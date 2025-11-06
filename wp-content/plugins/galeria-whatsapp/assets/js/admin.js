@@ -93,6 +93,9 @@ jQuery(document).ready(function($) {
             var totalToUpload = attachments.length;
             var totalUploaded = 0;
             var errors = 0;
+            var errorDetails = [];
+            
+            console.log('📤 Subiendo', totalToUpload, 'foto(s)...');
             
             attachments.forEach(function(attachment) {
                 $.ajax({
@@ -105,16 +108,41 @@ jQuery(document).ready(function($) {
                         folder_id: currentFolder
                     },
                     success: function(response) {
-                        if (response.success) {
+                        console.log('📷 Respuesta subida:', response);
+                        
+                        if (response.success && response.data) {
                             totalUploaded++;
+                            console.log('✅ Foto subida:', response.data.photo_id);
                         } else {
                             errors++;
+                            var errorMsg = response.data || 'Error desconocido';
+                            errorDetails.push(attachment.filename + ': ' + errorMsg);
+                            console.error('❌ Error:', errorMsg);
                         }
+                        
+                        // Cuando terminan todas las subidas
+                        if (totalUploaded + errors === totalToUpload) {
+                            loadPhotos();
+                            loadFolders();
+                            
+                            if (totalUploaded > 0 && errors === 0) {
+                                alert('✅ ' + totalUploaded + ' foto(s) subidas correctamente!');
+                            } else if (totalUploaded > 0 && errors > 0) {
+                                alert('⚠️ ' + totalUploaded + ' foto(s) subidas\n' + errors + ' error(es):\n' + errorDetails.join('\n'));
+                            } else {
+                                alert('❌ No se pudo subir ninguna foto:\n' + errorDetails.join('\n'));
+                            }
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        errors++;
+                        errorDetails.push(attachment.filename + ': Error AJAX - ' + error);
+                        console.error('❌ Error AJAX:', error, xhr);
                         
                         if (totalUploaded + errors === totalToUpload) {
                             loadPhotos();
                             loadFolders();
-                            alert('✅ ' + totalUploaded + ' foto(s) subidas!');
+                            alert('❌ Error al subir fotos:\n' + errorDetails.join('\n'));
                         }
                     }
                 });

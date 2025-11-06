@@ -42,12 +42,22 @@ class Galeria_WhatsApp_Admin_Ajax {
         $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
         $folder_id = isset($_POST['folder_id']) ? intval($_POST['folder_id']) : 0;
         
+        if (!$attachment_id) {
+            wp_send_json_error('ID de archivo inválido');
+            return;
+        }
+        
+        // Log para debugging
+        error_log('Galería WhatsApp: Subiendo attachment_id=' . $attachment_id . ' a folder_id=' . $folder_id);
+        
         $result = $this->photo_manager->upload_photo($attachment_id, $folder_id);
         
-        if ($result) {
+        if ($result && is_array($result)) {
+            error_log('Galería WhatsApp: Foto subida exitosamente - ID: ' . $result['photo_id']);
             wp_send_json_success($result);
         } else {
-            wp_send_json_error('Error al subir foto');
+            error_log('Galería WhatsApp: Error al subir foto - attachment_id=' . $attachment_id);
+            wp_send_json_error('Error al subir foto. Verifica que el archivo sea una imagen válida.');
         }
     }
     

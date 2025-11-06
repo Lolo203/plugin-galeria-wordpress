@@ -32,8 +32,18 @@ class Galeria_WhatsApp_Photo_Manager {
             return false;
         }
         
-        // Generar ID único para la foto
-        $photo_id = $this->generate_unique_photo_id();
+        // Obtener nombre original del archivo
+        $attachment = get_post($attachment_id);
+        if (!$attachment) {
+            return false;
+        }
+        
+        // Obtener el nombre del archivo sin extensión
+        $file_path = get_attached_file($attachment_id);
+        $file_name = pathinfo($file_path, PATHINFO_FILENAME);
+        
+        // Generar ID basado en el nombre del archivo
+        $photo_id = $this->generate_photo_id_from_filename($file_name);
         $image_url = wp_get_attachment_url($attachment_id);
         
         if (!$image_url) {
@@ -64,7 +74,82 @@ class Galeria_WhatsApp_Photo_Manager {
     }
     
     /**
-     * Generar ID único para foto (formato: YYYYMMDD-XXX)
+     * Generar ID de foto basado en nombre de archivo
+     */
+    private function generate_photo_id_from_filename($filename) {
+        global $wpdb;
+        
+        // Sanitizar nombre del archivo
+        $clean_name = $this->sanitize_photo_id($filename);
+        
+        // Si el nombre está vacío después de sanitizar, usar timestamp
+        if (empty($clean_name)) {
+            $clean_name = 'photo-' . time();
+        }
+        
+        // Verificar si ya existe
+        $original_name = $clean_name;
+        $counter = 1;
+        
+        while ($this->photo_id_exists($clean_name)) {
+            $clean_name = $original_name . '-' . $counter;
+            $counter++;
+            
+            // Prevenir loops infinitos
+            if ($counter > 1000) {
+                $clean_name = $original_name . '-' . uniqid();
+                break;
+            }
+        }
+        
+        return $clean_name;
+    }
+    
+    /**
+     * Sanitizar ID de foto
+     */
+    private function sanitize_photo_id($name) {
+        // Convertir a minúsculas
+        $name = strtolower($name);
+        
+        // Reemplazar espacios y guiones bajos con guiones
+        $name = str_replace(array(' ', '_'), '-', $name);
+        
+        // Eliminar caracteres especiales, mantener solo alfanuméricos y guiones
+        $name = preg_replace('/[^a-z0-9-]/', '', $name);
+        
+        // Eliminar múltiples guiones consecutivos
+        $name = preg_replace('/-+/', '-', $name);
+        
+        // Eliminar guiones al inicio y final
+        $name = trim($name, '-');
+        
+        // Limitar longitud a 50 caracteres
+        if (strlen($name) > 50) {
+            $name = substr($name, 0, 50);
+            $name = rtrim($name, '-');
+        }
+        
+        return $name;
+    }
+    
+    /**
+     * Verificar si existe un photo_id
+     */
+    private function photo_id_exists($photo_id) {
+        global $wpdb;
+        
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->table_photos} WHERE photo_id = %s",
+            $photo_id
+        ));
+        
+        return $exists > 0;
+    }
+    
+    /**
+     * Generar ID único para foto (formato antiguo: YYYYMMDD-XXX)
+     * DEPRECATED: Mantenido por compatibilidad
      */
     private function generate_unique_photo_id() {
         global $wpdb;
@@ -156,53 +241,5 @@ class Galeria_WhatsApp_Photo_Manager {
         );
         
         return $deleted !== false;
-    }
-    
-    /**
-     * Eliminar múltiples fotos
-     * 
-     * @param array $photo_ids Array de IDs de fotos a eliminar
-     * @return array Resultado con contadores de éxito y fallos
-     */
-    public function delete_multiple_photos($photo_ids) {
-        global $wpdb;
-        
-        if (!is_array($photo_ids) || empty($photo_ids)) {
-            return array(
-                'success' => false,
-                'deleted_count' => 0,
-                'failed_count' => 0
-            );
-        }
-        
-        $deleted_count = 0;
-        $failed_count = 0;
-        
-        foreach ($photo_ids as $photo_id) {
-            $photo_id = intval($photo_id);
-            
-            if ($photo_id <= 0) {
-                $failed_count++;
-                continue;
-            }
-            
-            $result = $wpdb->delete(
-                $this->table_photos,
-                array('id' => $photo_id),
-                array('%d')
-            );
-            
-            if ($result !== false && $result > 0) {
-                $deleted_count++;
-            } else {
-                $failed_count++;
-            }
-        }
-        
-        return array(
-            'success' => $deleted_count > 0,
-            'deleted_count' => $deleted_count,
-            'failed_count' => $failed_count
-        );
     }
 }
