@@ -15,6 +15,39 @@ jQuery(document).ready(function($) {
     
     console.log('📂 Galería WhatsApp Admin v' + galeriaAdmin.version);
     
+    /**
+     * Función auxiliar para extraer mensaje de error de respuesta AJAX
+     * Maneja correctamente objetos, strings y diferentes formatos de error
+     */
+    function extractErrorMessage(responseData, defaultMsg) {
+        defaultMsg = defaultMsg || 'Error desconocido';
+        
+        if (!responseData) {
+            return defaultMsg;
+        }
+        
+        // Si es un string, devolverlo directamente
+        if (typeof responseData === 'string') {
+            return responseData;
+        }
+        
+        // Si es un objeto con propiedad message
+        if (typeof responseData === 'object' && responseData.message) {
+            return responseData.message;
+        }
+        
+        // Si es un objeto, intentar convertirlo a string legible
+        if (typeof responseData === 'object') {
+            try {
+                return JSON.stringify(responseData);
+            } catch (e) {
+                return defaultMsg;
+            }
+        }
+        
+        return defaultMsg;
+    }
+    
     // Inicializar
     loadFolders();
     loadPhotos();
@@ -269,25 +302,36 @@ jQuery(document).ready(function($) {
                             console.log('✅ Foto subida:', photoId);
                         } else {
                             errors++;
-                            var errorMsg = response.data && response.data.message ? response.data.message : 'Error desconocido';
+                            var errorMsg = extractErrorMessage(response.data, 'Error desconocido');
+                            
                             addProgressDetail(
                                 attachment.filename + ': ' + errorMsg,
                                 'error'
                             );
-                            console.error('❌ Error:', errorMsg);
+                            console.error('❌ Error:', errorMsg, response);
                         }
                     },
                     error: function(xhr, status, error) {
                         errors++;
                         var errorMsg = 'Error de conexión';
-                        if (xhr.responseJSON && xhr.responseJSON.data) {
-                            errorMsg = xhr.responseJSON.data;
+                        
+                        // Intentar extraer mensaje de error de la respuesta
+                        if (xhr.responseJSON) {
+                            errorMsg = extractErrorMessage(xhr.responseJSON.data || xhr.responseJSON.message, 'Error de conexión');
+                        } else if (xhr.responseText) {
+                            try {
+                                var parsed = JSON.parse(xhr.responseText);
+                                errorMsg = extractErrorMessage(parsed.data || parsed.message, 'Error de servidor');
+                            } catch (e) {
+                                errorMsg = 'Error de servidor: ' + xhr.status + ' ' + xhr.statusText;
+                            }
                         }
+                        
                         addProgressDetail(
                             attachment.filename + ': ' + errorMsg,
                             'error'
                         );
-                        console.error('❌ Error AJAX:', error);
+                        console.error('❌ Error AJAX:', error, xhr);
                     }
                 });
             }
@@ -361,7 +405,8 @@ jQuery(document).ready(function($) {
                     loadFolders();
                     alert('✅ Carpeta creada: ' + folderName);
                 } else {
-                    alert('❌ ' + (response.data || 'Error al crear carpeta'));
+                    var errorMsg = extractErrorMessage(response.data, 'Error al crear carpeta');
+                    alert('❌ ' + errorMsg);
                 }
             },
             error: function() {
@@ -398,7 +443,8 @@ jQuery(document).ready(function($) {
                     loadFolders();
                     alert('✅ Subcarpeta creada!');
                 } else {
-                    alert('❌ ' + (response.data || 'Error al crear subcarpeta'));
+                    var errorMsg = extractErrorMessage(response.data, 'Error al crear subcarpeta');
+                    alert('❌ ' + errorMsg);
                 }
             }
         });
@@ -564,7 +610,8 @@ jQuery(document).ready(function($) {
                     loadPhotos();
                     alert('✅ Carpeta eliminada');
                 } else {
-                    alert('❌ ' + (response.data || 'Error al eliminar carpeta'));
+                    var errorMsg = extractErrorMessage(response.data, 'Error al eliminar carpeta');
+                    alert('❌ ' + errorMsg);
                 }
             }
         });
@@ -705,7 +752,8 @@ jQuery(document).ready(function($) {
                     selectedPhotos = [];
                     updateBulkActionsBar();
                 } else {
-                    alert('❌ Error: ' + (response.data || 'Error desconocido'));
+                    var errorMsg = extractErrorMessage(response.data, 'Error desconocido');
+                    alert('❌ Error: ' + errorMsg);
                 }
             },
             error: function() {
@@ -745,7 +793,8 @@ jQuery(document).ready(function($) {
                     });
                     loadFolders();
                 } else {
-                    alert('❌ ' + (response.data || 'Error al eliminar foto'));
+                    var errorMsg = extractErrorMessage(response.data, 'Error al eliminar foto');
+                    alert('❌ ' + errorMsg);
                 }
             }
         });
