@@ -72,11 +72,8 @@ class Galeria_WhatsApp_Admin_Ajax {
             // Log del error
             error_log('Galería WhatsApp - Error en upload_photo: ' . $e->getMessage());
             
-            // Respuesta de error amigable
-            wp_send_json_error(array(
-                'message' => $e->getMessage(),
-                'details' => defined('WP_DEBUG') && WP_DEBUG ? $e->getTraceAsString() : null
-            ));
+            // Respuesta de error amigable - enviar solo el mensaje como string para evitar [object Object]
+            wp_send_json_error($e->getMessage());
         }
     }
     

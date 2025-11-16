@@ -292,6 +292,8 @@ jQuery(document).ready(function($) {
                         folder_id: currentFolder
                     },
                     success: function(response) {
+                        console.log('📥 Respuesta recibida:', response);
+                        
                         if (response.success && response.data) {
                             totalUploaded++;
                             var photoId = response.data.photo_id;
@@ -302,26 +304,74 @@ jQuery(document).ready(function($) {
                             console.log('✅ Foto subida:', photoId);
                         } else {
                             errors++;
-                            var errorMsg = extractErrorMessage(response.data, 'Error desconocido');
+                            // Extraer mensaje de error - WordPress puede devolver data como string o objeto
+                            var errorMsg = 'Error desconocido';
+                            
+                            if (response && response.data !== undefined) {
+                                if (typeof response.data === 'string') {
+                                    errorMsg = response.data;
+                                } else if (response.data && typeof response.data === 'object') {
+                                    if (response.data.message) {
+                                        errorMsg = response.data.message;
+                                    } else {
+                                        // Si es un objeto sin message, intentar stringify
+                                        errorMsg = JSON.stringify(response.data);
+                                    }
+                                }
+                            } else if (response && response.message) {
+                                errorMsg = response.message;
+                            }
                             
                             addProgressDetail(
                                 attachment.filename + ': ' + errorMsg,
                                 'error'
                             );
-                            console.error('❌ Error:', errorMsg, response);
+                            console.error('❌ Error en respuesta:', {
+                                errorMsg: errorMsg,
+                                response: response,
+                                responseData: response.data,
+                                responseDataType: typeof response.data
+                            });
                         }
                     },
                     error: function(xhr, status, error) {
                         errors++;
                         var errorMsg = 'Error de conexión';
                         
+                        console.error('❌ Error AJAX completo:', {
+                            status: status,
+                            error: error,
+                            xhr: xhr,
+                            responseText: xhr.responseText,
+                            responseJSON: xhr.responseJSON,
+                            statusCode: xhr.status
+                        });
+                        
                         // Intentar extraer mensaje de error de la respuesta
                         if (xhr.responseJSON) {
-                            errorMsg = extractErrorMessage(xhr.responseJSON.data || xhr.responseJSON.message, 'Error de conexión');
+                            if (typeof xhr.responseJSON.data === 'string') {
+                                errorMsg = xhr.responseJSON.data;
+                            } else if (xhr.responseJSON.data && typeof xhr.responseJSON.data === 'object') {
+                                if (xhr.responseJSON.data.message) {
+                                    errorMsg = xhr.responseJSON.data.message;
+                                } else {
+                                    errorMsg = JSON.stringify(xhr.responseJSON.data);
+                                }
+                            } else if (xhr.responseJSON.message) {
+                                errorMsg = xhr.responseJSON.message;
+                            } else if (typeof xhr.responseJSON.data === 'string') {
+                                errorMsg = xhr.responseJSON.data;
+                            }
                         } else if (xhr.responseText) {
                             try {
                                 var parsed = JSON.parse(xhr.responseText);
-                                errorMsg = extractErrorMessage(parsed.data || parsed.message, 'Error de servidor');
+                                if (typeof parsed.data === 'string') {
+                                    errorMsg = parsed.data;
+                                } else if (parsed.data && parsed.data.message) {
+                                    errorMsg = parsed.data.message;
+                                } else if (parsed.message) {
+                                    errorMsg = parsed.message;
+                                }
                             } catch (e) {
                                 errorMsg = 'Error de servidor: ' + xhr.status + ' ' + xhr.statusText;
                             }
@@ -331,7 +381,6 @@ jQuery(document).ready(function($) {
                             attachment.filename + ': ' + errorMsg,
                             'error'
                         );
-                        console.error('❌ Error AJAX:', error, xhr);
                     }
                 });
             }
@@ -463,8 +512,21 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if (response.success && response.data) {
-                    displayFolders(response.data.folders || response.data);
+                    // Asegurar que tenemos un array de carpetas
+                    var folders = [];
+                    if (Array.isArray(response.data.folders)) {
+                        folders = response.data.folders;
+                    } else if (Array.isArray(response.data)) {
+                        folders = response.data;
+                    }
+                    displayFolders(folders);
+                } else {
+                    displayFolders([]);
                 }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ Error cargando carpetas:', error);
+                displayFolders([]);
             }
         });
     }
@@ -476,6 +538,12 @@ jQuery(document).ready(function($) {
         var list = $('.folders-list');
         list.empty();
         
+        // Asegurar que folders es un array
+        if (!Array.isArray(folders)) {
+            console.error('❌ displayFolders: folders no es un array:', folders);
+            folders = [];
+        }
+        
         // Carpeta "Todas"
         var allHtml = '<div class="folder-item ' + (currentFolder === 0 ? 'active' : '') + '" data-id="0" data-parent="0">' +
             '<span class="folder-name">🏠 Todas las fotos</span>' +
@@ -485,6 +553,11 @@ jQuery(document).ready(function($) {
         
         // Construir árbol recursivo
         function buildTree(parentId, level) {
+            // Validación adicional por si acaso
+            if (!Array.isArray(folders)) {
+                console.error('❌ buildTree: folders no es un array:', folders);
+                return;
+            }
             var children = folders.filter(f => parseInt(f.parent_id) === parentId);
             
             children.forEach(function(folder) {
@@ -633,8 +706,23 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 console.log('📷 Fotos recibidas:', response);
                 if (response.success && response.data) {
-                    displayPhotos(response.data.photos || response.data);
+                    // Asegurar que tenemos un array de fotos
+                    var photos = [];
+                    if (Array.isArray(response.data.photos)) {
+                        photos = response.data.photos;
+                    } else if (Array.isArray(response.data)) {
+                        photos = response.data;
+                    } else if (response.data.photos && Array.isArray(response.data.photos)) {
+                        photos = response.data.photos;
+                    }
+                    displayPhotos(photos);
+                } else {
+                    displayPhotos([]);
                 }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ Error cargando fotos:', error);
+                displayPhotos([]);
             }
         });
     }
@@ -649,6 +737,12 @@ jQuery(document).ready(function($) {
         // Resetear selección
         selectedPhotos = [];
         updateBulkActionsBar();
+        
+        // Asegurar que photos es un array
+        if (!Array.isArray(photos)) {
+            console.error('❌ displayPhotos: photos no es un array:', photos);
+            photos = [];
+        }
         
         if (!photos || photos.length === 0) {
             grid.html('<p style="grid-column: 1/-1; text-align: center; padding: 40px;">No hay fotos en esta carpeta.</p>');

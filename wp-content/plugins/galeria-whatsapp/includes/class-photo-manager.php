@@ -106,8 +106,14 @@ class Galeria_WhatsApp_Photo_Manager {
             );
             
         } catch (Exception $e) {
-            error_log('Galería WhatsApp Error: ' . $e->getMessage());
-            return false;
+            // Log del error con más detalles
+            error_log(sprintf(
+                'Galería WhatsApp Error en upload_photo (Attachment ID: %d): %s',
+                $attachment_id,
+                $e->getMessage()
+            ));
+            // Re-lanzar la excepción para que el llamador pueda manejarla
+            throw $e;
         }
     }
     
@@ -194,9 +200,9 @@ class Galeria_WhatsApp_Photo_Manager {
         // Eliminar guiones al inicio y final
         $name = trim($name, '-');
         
-        // Limitar longitud a 50 caracteres
-        if (strlen($name) > 50) {
-            $name = substr($name, 0, 50);
+        // Limitar longitud a 80 caracteres (dejando espacio para contadores)
+        if (strlen($name) > 80) {
+            $name = substr($name, 0, 80);
             $name = rtrim($name, '-');
         }
         

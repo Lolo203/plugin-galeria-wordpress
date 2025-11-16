@@ -29,7 +29,7 @@ class Galeria_WhatsApp_Database {
         
         $sql_photos = "CREATE TABLE IF NOT EXISTS {$this->table_photos} (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
-            photo_id varchar(20) NOT NULL,
+            photo_id varchar(100) NOT NULL,
             attachment_id bigint(20) NOT NULL,
             image_url text NOT NULL,
             folder_id mediumint(9) DEFAULT 0,
@@ -66,7 +66,12 @@ class Galeria_WhatsApp_Database {
         if (empty($column)) {
             $wpdb->query("ALTER TABLE {$this->table_photos} ADD COLUMN folder_id mediumint(9) DEFAULT 0 AFTER image_url");
             $wpdb->query("ALTER TABLE {$this->table_photos} ADD KEY folder_id (folder_id)");
-            $wpdb->query("ALTER TABLE {$this->table_photos} MODIFY photo_id varchar(20) NOT NULL");
+        }
+        
+        // Actualizar tamaño de photo_id si es necesario
+        $photo_id_column = $wpdb->get_row("SHOW COLUMNS FROM {$this->table_photos} WHERE Field = 'photo_id'");
+        if ($photo_id_column && strpos($photo_id_column->Type, 'varchar(20)') !== false) {
+            $wpdb->query("ALTER TABLE {$this->table_photos} MODIFY photo_id varchar(100) NOT NULL");
         }
         
         // Verificar columna parent_id en tabla folders
