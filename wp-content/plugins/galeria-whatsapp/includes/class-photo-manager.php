@@ -23,54 +23,124 @@ class Galeria_WhatsApp_Photo_Manager {
     }
     
     /**
-     * Subir foto
+     * Subir foto con validaciones mejoradas
      */
     public function upload_photo($attachment_id, $folder_id = 0) {
         global $wpdb;
         
-        if (!$attachment_id) {
-            return false;
-        }
-        
-        // Obtener nombre original del archivo
-        $attachment = get_post($attachment_id);
-        if (!$attachment) {
-            return false;
-        }
-        
-        // Obtener el nombre del archivo sin extensión
-        $file_path = get_attached_file($attachment_id);
-        $file_name = pathinfo($file_path, PATHINFO_FILENAME);
-        
-        // Generar ID basado en el nombre del archivo
-        $photo_id = $this->generate_photo_id_from_filename($file_name);
-        $image_url = wp_get_attachment_url($attachment_id);
-        
-        if (!$image_url) {
-            return false;
-        }
-        
-        $inserted = $wpdb->insert(
-            $this->table_photos,
-            array(
-                'photo_id' => $photo_id,
-                'attachment_id' => intval($attachment_id),
-                'image_url' => esc_url_raw($image_url),
-                'folder_id' => intval($folder_id)
-            ),
-            array('%s', '%d', '%s', '%d')
-        );
-        
-        if ($inserted) {
+        try {
+            // Validación 1: Attachment ID válido
+            if (!$attachment_id || $attachment_id <= 0) {
+                throw new Exception('ID de archivo inválido');
+            }
+            
+            // Validación 2: El attachment existe
+            $attachment = get_post($attachment_id);
+            if (!$attachment || $attachment->post_type !== 'attachment') {
+                throw new Exception('El archivo no existe en la biblioteca de medios');
+            }
+            
+            // Validación 3: Es una imagen
+            if (!wp_attachment_is_image($attachment_id)) {
+                throw new Exception('El archivo no es una imagen válida');
+            }
+            
+            // Validación 4: La carpeta existe (si no es raíz)
+            if ($folder_id > 0 && !$this->folder_exists($folder_id)) {
+                error_log("Galería WhatsApp: Carpeta $folder_id no existe, usando raíz");
+                $folder_id = 0;
+            }
+            
+            // Validación 5: No está duplicada
+            if ($this->is_attachment_already_uploaded($attachment_id)) {
+                throw new Exception('Esta imagen ya está en la galería');
+            }
+            
+            // Obtener información del archivo
+            $file_path = get_attached_file($attachment_id);
+            if (!$file_path || !file_exists($file_path)) {
+                throw new Exception('No se puede acceder al archivo físico');
+            }
+            
+            $file_name = pathinfo($file_path, PATHINFO_FILENAME);
+            
+            // Generar ID único
+            $photo_id = $this->generate_photo_id_from_filename($file_name);
+            
+            // Obtener URL
+            $image_url = wp_get_attachment_url($attachment_id);
+            if (!$image_url) {
+                throw new Exception('No se pudo obtener la URL de la imagen');
+            }
+            
+            // Insertar en base de datos
+            $inserted = $wpdb->insert(
+                $this->table_photos,
+                array(
+                    'photo_id' => $photo_id,
+                    'attachment_id' => intval($attachment_id),
+                    'image_url' => esc_url_raw($image_url),
+                    'folder_id' => intval($folder_id)
+                ),
+                array('%s', '%d', '%s', '%d')
+            );
+            
+            if (!$inserted) {
+                throw new Exception('Error al guardar en la base de datos: ' . $wpdb->last_error);
+            }
+            
+            // Log de éxito
+            error_log(sprintf(
+                'Galería WhatsApp: Foto subida - ID: %s, Attachment: %d, Carpeta: %d',
+                $photo_id,
+                $attachment_id,
+                $folder_id
+            ));
+            
             return array(
                 'photo_id' => $photo_id,
                 'image_url' => $image_url,
                 'db_id' => $wpdb->insert_id,
-                'folder_id' => $folder_id
+                'folder_id' => $folder_id,
+                'attachment_id' => $attachment_id
             );
+            
+        } catch (Exception $e) {
+            error_log('Galería WhatsApp Error: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Verificar si un attachment ya fue subido
+     */
+    private function is_attachment_already_uploaded($attachment_id) {
+        global $wpdb;
+        
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->table_photos} WHERE attachment_id = %d",
+            intval($attachment_id)
+        ));
+        
+        return $exists > 0;
+    }
+    
+    /**
+     * Verificar si una carpeta existe
+     */
+    private function folder_exists($folder_id) {
+        global $wpdb;
+        
+        if ($folder_id <= 0) {
+            return true; // Carpeta raíz siempre existe
         }
         
-        return false;
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->table_folders} WHERE id = %d",
+            intval($folder_id)
+        ));
+        
+        return $exists > 0;
     }
     
     /**
@@ -148,30 +218,6 @@ class Galeria_WhatsApp_Photo_Manager {
     }
     
     /**
-     * Generar ID único para foto (formato antiguo: YYYYMMDD-XXX)
-     * DEPRECATED: Mantenido por compatibilidad
-     */
-    private function generate_unique_photo_id() {
-        global $wpdb;
-        
-        $today = date('Ymd');
-        
-        $last_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT photo_id FROM {$this->table_photos} WHERE photo_id LIKE %s ORDER BY photo_id DESC LIMIT 1",
-            $today . '-%'
-        ));
-        
-        if ($last_id) {
-            $parts = explode('-', $last_id);
-            $day_number = intval($parts[1]) + 1;
-        } else {
-            $day_number = 1;
-        }
-        
-        return $today . '-' . str_pad($day_number, 3, '0', STR_PAD_LEFT);
-    }
-    
-    /**
      * Obtener fotos
      */
     public function get_photos($folder_id = null, $include_subfolders = false) {
@@ -183,7 +229,7 @@ class Galeria_WhatsApp_Photo_Manager {
                 SELECT p.id, p.photo_id, p.attachment_id, p.image_url, p.folder_id, p.upload_date, f.name as folder_name 
                 FROM {$this->table_photos} p 
                 LEFT JOIN {$this->table_folders} f ON p.folder_id = f.id 
-                ORDER BY p.photo_id DESC
+                ORDER BY p.upload_date DESC, p.photo_id DESC
             ", ARRAY_A);
         } 
         // Si debe incluir subcarpetas
@@ -196,7 +242,7 @@ class Galeria_WhatsApp_Photo_Manager {
                 FROM {$this->table_photos} p 
                 LEFT JOIN {$this->table_folders} f ON p.folder_id = f.id 
                 WHERE p.folder_id IN ($ids_string)
-                ORDER BY p.photo_id DESC
+                ORDER BY p.upload_date DESC, p.photo_id DESC
             ", ARRAY_A);
         }
         // Solo carpeta específica
@@ -206,7 +252,7 @@ class Galeria_WhatsApp_Photo_Manager {
                 FROM {$this->table_photos} p 
                 LEFT JOIN {$this->table_folders} f ON p.folder_id = f.id 
                 WHERE p.folder_id = %d 
-                ORDER BY p.photo_id DESC
+                ORDER BY p.upload_date DESC, p.photo_id DESC
             ", $folder_id), ARRAY_A);
         }
         
@@ -241,5 +287,31 @@ class Galeria_WhatsApp_Photo_Manager {
         );
         
         return $deleted !== false;
+    }
+    
+    /**
+     * Obtener información de una foto por ID
+     */
+    public function get_photo_by_id($photo_id) {
+        global $wpdb;
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->table_photos} WHERE photo_id = %s",
+            $photo_id
+        ), ARRAY_A);
+    }
+    
+    /**
+     * Obtener estadísticas de la galería
+     */
+    public function get_gallery_stats() {
+        global $wpdb;
+        
+        return array(
+            'total_photos' => $wpdb->get_var("SELECT COUNT(*) FROM {$this->table_photos}"),
+            'photos_today' => $wpdb->get_var("SELECT COUNT(*) FROM {$this->table_photos} WHERE DATE(upload_date) = CURDATE()"),
+            'photos_this_week' => $wpdb->get_var("SELECT COUNT(*) FROM {$this->table_photos} WHERE YEARWEEK(upload_date) = YEARWEEK(NOW())"),
+            'photos_this_month' => $wpdb->get_var("SELECT COUNT(*) FROM {$this->table_photos} WHERE YEAR(upload_date) = YEAR(NOW()) AND MONTH(upload_date) = MONTH(NOW())")
+        );
     }
 }

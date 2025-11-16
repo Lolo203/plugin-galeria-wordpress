@@ -1,5 +1,5 @@
 /**
- * JavaScript del Admin
+ * JavaScript del Admin con Progress Bar
  * @package Galeria_WhatsApp
  */
 
@@ -20,15 +20,145 @@ jQuery(document).ready(function($) {
     loadPhotos();
     
     /**
+     * Crear barra de progreso
+     */
+    function createProgressBar() {
+        var html = '<div class="upload-progress-overlay" id="upload-progress-overlay">' +
+            '<div class="upload-progress-container">' +
+            '<h3>📤 Subiendo fotos...</h3>' +
+            '<div class="progress-bar-wrapper">' +
+            '<div class="progress-bar" id="progress-bar">' +
+            '<div class="progress-fill" id="progress-fill"></div>' +
+            '</div>' +
+            '<div class="progress-text" id="progress-text">0 / 0</div>' +
+            '</div>' +
+            '<div class="progress-details" id="progress-details"></div>' +
+            '<button class="button progress-close-btn" id="progress-close-btn" style="display:none;">Cerrar</button>' +
+            '</div>' +
+            '</div>';
+        
+        $('body').append(html);
+        
+        // Agregar estilos
+        if (!$('#upload-progress-styles').length) {
+            var styles = '<style id="upload-progress-styles">' +
+                '.upload-progress-overlay {' +
+                '    position: fixed;' +
+                '    top: 0;' +
+                '    left: 0;' +
+                '    right: 0;' +
+                '    bottom: 0;' +
+                '    background: rgba(0,0,0,0.8);' +
+                '    display: flex;' +
+                '    align-items: center;' +
+                '    justify-content: center;' +
+                '    z-index: 999999;' +
+                '}' +
+                '.upload-progress-container {' +
+                '    background: white;' +
+                '    padding: 30px;' +
+                '    border-radius: 8px;' +
+                '    min-width: 400px;' +
+                '    max-width: 600px;' +
+                '}' +
+                '.upload-progress-container h3 {' +
+                '    margin: 0 0 20px 0;' +
+                '    text-align: center;' +
+                '}' +
+                '.progress-bar-wrapper {' +
+                '    margin-bottom: 20px;' +
+                '}' +
+                '.progress-bar {' +
+                '    width: 100%;' +
+                '    height: 30px;' +
+                '    background: #f0f0f1;' +
+                '    border-radius: 15px;' +
+                '    overflow: hidden;' +
+                '    position: relative;' +
+                '}' +
+                '.progress-fill {' +
+                '    height: 100%;' +
+                '    background: linear-gradient(90deg, #2271b1, #135e96);' +
+                '    border-radius: 15px;' +
+                '    width: 0%;' +
+                '    transition: width 0.3s;' +
+                '}' +
+                '.progress-text {' +
+                '    text-align: center;' +
+                '    font-weight: bold;' +
+                '    font-size: 16px;' +
+                '    margin-top: 10px;' +
+                '}' +
+                '.progress-details {' +
+                '    max-height: 200px;' +
+                '    overflow-y: auto;' +
+                '    background: #f9f9f9;' +
+                '    padding: 15px;' +
+                '    border-radius: 4px;' +
+                '    font-size: 13px;' +
+                '}' +
+                '.progress-item {' +
+                '    padding: 5px 0;' +
+                '    border-bottom: 1px solid #e0e0e1;' +
+                '}' +
+                '.progress-item:last-child {' +
+                '    border-bottom: none;' +
+                '}' +
+                '.progress-item.success {' +
+                '    color: #46b450;' +
+                '}' +
+                '.progress-item.error {' +
+                '    color: #dc3232;' +
+                '}' +
+                '.progress-close-btn {' +
+                '    margin-top: 20px;' +
+                '    width: 100%;' +
+                '}' +
+                '</style>';
+            $('head').append(styles);
+        }
+    }
+    
+    /**
+     * Mostrar progreso de subida
+     */
+    function showProgress(current, total) {
+        var percentage = Math.round((current / total) * 100);
+        $('#progress-fill').css('width', percentage + '%');
+        $('#progress-text').text(current + ' / ' + total);
+    }
+    
+    /**
+     * Agregar detalle de progreso
+     */
+    function addProgressDetail(message, type) {
+        var icon = type === 'success' ? '✅' : (type === 'error' ? '❌' : 'ℹ️');
+        var html = '<div class="progress-item ' + type + '">' + icon + ' ' + message + '</div>';
+        $('#progress-details').prepend(html);
+        
+        // Auto-scroll
+        $('#progress-details').scrollTop(0);
+    }
+    
+    /**
+     * Cerrar overlay de progreso
+     */
+    $(document).on('click', '#progress-close-btn', function() {
+        $('#upload-progress-overlay').fadeOut(300, function() {
+            $(this).remove();
+        });
+    });
+    
+    /**
      * Actualizar información de carpeta actual
      */
     function updateCurrentFolderInfo() {
         var breadcrumb = '<div class="breadcrumb">';
         
         if (folderPath.length === 0) {
-            breadcrumb += '<span class="breadcrumb-item" data-id="0">📁 Raíz</span>';
+            breadcrumb += '<span class="breadcrumb-item" data-id="0">🏠 Raíz</span>';
         } else {
-            breadcrumb += '<span class="breadcrumb-item" data-id="0">📁 Raíz</span>';
+            breadcrumb += '<span class="breadcrumb-item" data-id="0">🏠 Raíz</span>';
             folderPath.forEach(function(folder) {
                 breadcrumb += '<span class="breadcrumb-separator">›</span>';
                 breadcrumb += '<span class="breadcrumb-item" data-id="' + folder.id + '">' + folder.name + '</span>';
@@ -36,7 +166,7 @@ jQuery(document).ready(function($) {
         }
         breadcrumb += '</div>';
         
-        var infoText = breadcrumb + '📁 Carpeta actual: <strong>' + currentFolderName + '</strong>';
+        var infoText = breadcrumb + '📍 Carpeta actual: <strong>' + currentFolderName + '</strong>';
         $('.current-folder-info').remove();
         $('.upload-section').append('<div class="current-folder-info">' + infoText + '</div>');
     }
@@ -71,7 +201,7 @@ jQuery(document).ready(function($) {
     });
     
     /**
-     * Botón subir fotos
+     * Botón subir fotos con validación mejorada
      */
     $('#upload-photos-btn').on('click', function(e) {
         e.preventDefault();
@@ -91,14 +221,35 @@ jQuery(document).ready(function($) {
         mediaUploader.on('select', function() {
             var attachments = mediaUploader.state().get('selection').toJSON();
             var totalToUpload = attachments.length;
-            var totalUploaded = 0;
-            var errors = 0;
-            var errorDetails = [];
+            
+            if (totalToUpload === 0) {
+                alert('⚠️ No se seleccionaron imágenes');
+                return;
+            }
+            
+            // Crear overlay de progreso
+            createProgressBar();
+            showProgress(0, totalToUpload);
+            addProgressDetail('Iniciando subida de ' + totalToUpload + ' foto(s)...', 'info');
             
             console.log('📤 Subiendo', totalToUpload, 'foto(s)...');
             
-            attachments.forEach(function(attachment) {
-                $.ajax({
+            var totalUploaded = 0;
+            var errors = 0;
+            var uploadQueue = [];
+            
+            // Crear cola de subidas
+            attachments.forEach(function(attachment, index) {
+                uploadQueue.push(function() {
+                    return uploadPhoto(attachment, index + 1, totalToUpload);
+                });
+            });
+            
+            // Procesar cola secuencialmente
+            processUploadQueue(uploadQueue, 0, totalToUpload);
+            
+            function uploadPhoto(attachment, current, total) {
+                return $.ajax({
                     url: galeriaAdmin.ajaxUrl,
                     type: 'POST',
                     data: {
@@ -108,45 +259,69 @@ jQuery(document).ready(function($) {
                         folder_id: currentFolder
                     },
                     success: function(response) {
-                        console.log('📷 Respuesta subida:', response);
-                        
                         if (response.success && response.data) {
                             totalUploaded++;
-                            console.log('✅ Foto subida:', response.data.photo_id);
+                            var photoId = response.data.photo_id;
+                            addProgressDetail(
+                                'Foto #' + photoId + ' subida (' + attachment.filename + ')',
+                                'success'
+                            );
+                            console.log('✅ Foto subida:', photoId);
                         } else {
                             errors++;
-                            var errorMsg = response.data || 'Error desconocido';
-                            errorDetails.push(attachment.filename + ': ' + errorMsg);
+                            var errorMsg = response.data && response.data.message ? response.data.message : 'Error desconocido';
+                            addProgressDetail(
+                                attachment.filename + ': ' + errorMsg,
+                                'error'
+                            );
                             console.error('❌ Error:', errorMsg);
-                        }
-                        
-                        // Cuando terminan todas las subidas
-                        if (totalUploaded + errors === totalToUpload) {
-                            loadPhotos();
-                            loadFolders();
-                            
-                            if (totalUploaded > 0 && errors === 0) {
-                                alert('✅ ' + totalUploaded + ' foto(s) subidas correctamente!');
-                            } else if (totalUploaded > 0 && errors > 0) {
-                                alert('⚠️ ' + totalUploaded + ' foto(s) subidas\n' + errors + ' error(es):\n' + errorDetails.join('\n'));
-                            } else {
-                                alert('❌ No se pudo subir ninguna foto:\n' + errorDetails.join('\n'));
-                            }
                         }
                     },
                     error: function(xhr, status, error) {
                         errors++;
-                        errorDetails.push(attachment.filename + ': Error AJAX - ' + error);
-                        console.error('❌ Error AJAX:', error, xhr);
-                        
-                        if (totalUploaded + errors === totalToUpload) {
-                            loadPhotos();
-                            loadFolders();
-                            alert('❌ Error al subir fotos:\n' + errorDetails.join('\n'));
+                        var errorMsg = 'Error de conexión';
+                        if (xhr.responseJSON && xhr.responseJSON.data) {
+                            errorMsg = xhr.responseJSON.data;
                         }
+                        addProgressDetail(
+                            attachment.filename + ': ' + errorMsg,
+                            'error'
+                        );
+                        console.error('❌ Error AJAX:', error);
                     }
                 });
-            });
+            }
+            
+            function processUploadQueue(queue, index, total) {
+                if (index >= queue.length) {
+                    // Todas las subidas completadas
+                    onUploadComplete(totalUploaded, errors, total);
+                    return;
+                }
+                
+                queue[index]().always(function() {
+                    showProgress(index + 1, total);
+                    processUploadQueue(queue, index + 1, total);
+                });
+            }
+            
+            function onUploadComplete(uploaded, errors, total) {
+                loadPhotos();
+                loadFolders();
+                
+                // Mostrar botón de cerrar
+                $('#progress-close-btn').show();
+                
+                if (uploaded > 0 && errors === 0) {
+                    addProgressDetail('✅ ¡Todas las fotos subidas correctamente!', 'success');
+                } else if (uploaded > 0 && errors > 0) {
+                    addProgressDetail('⚠️ ' + uploaded + ' subidas, ' + errors + ' errores', 'info');
+                } else {
+                    addProgressDetail('❌ No se pudo subir ninguna foto', 'error');
+                }
+                
+                console.log('📊 Resultado: ' + uploaded + ' subidas, ' + errors + ' errores');
+            }
         });
         
         mediaUploader.open();
@@ -159,9 +334,17 @@ jQuery(document).ready(function($) {
         var folderName = $('#new-folder-name').val().trim();
         
         if (!folderName) {
-            alert('⚠️ Ingresa un nombre');
+            alert('⚠️ Ingresa un nombre para la carpeta');
             return;
         }
+        
+        if (folderName.length > 100) {
+            alert('⚠️ El nombre es demasiado largo (máximo 100 caracteres)');
+            return;
+        }
+        
+        var btn = $(this);
+        btn.prop('disabled', true).text('Creando...');
         
         $.ajax({
             url: galeriaAdmin.ajaxUrl,
@@ -176,8 +359,16 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     $('#new-folder-name').val('');
                     loadFolders();
-                    alert('✅ Carpeta creada!');
+                    alert('✅ Carpeta creada: ' + folderName);
+                } else {
+                    alert('❌ ' + (response.data || 'Error al crear carpeta'));
                 }
+            },
+            error: function() {
+                alert('❌ Error de conexión');
+            },
+            complete: function() {
+                btn.prop('disabled', false).text('Crear Carpeta');
             }
         });
     });
@@ -206,6 +397,8 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     loadFolders();
                     alert('✅ Subcarpeta creada!');
+                } else {
+                    alert('❌ ' + (response.data || 'Error al crear subcarpeta'));
                 }
             }
         });
@@ -223,8 +416,8 @@ jQuery(document).ready(function($) {
                 nonce: galeriaAdmin.nonce
             },
             success: function(response) {
-                if (response.success) {
-                    displayFolders(response.data);
+                if (response.success && response.data) {
+                    displayFolders(response.data.folders || response.data);
                 }
             }
         });
@@ -239,7 +432,7 @@ jQuery(document).ready(function($) {
         
         // Carpeta "Todas"
         var allHtml = '<div class="folder-item ' + (currentFolder === 0 ? 'active' : '') + '" data-id="0" data-parent="0">' +
-            '<span class="folder-name">📁 Todas las fotos</span>' +
+            '<span class="folder-name">🏠 Todas las fotos</span>' +
             '<div class="folder-actions"><span class="folder-count"></span></div>' +
             '</div>';
         list.append(allHtml);
@@ -348,7 +541,7 @@ jQuery(document).ready(function($) {
     $(document).on('click', '.delete-folder', function(e) {
         e.stopPropagation();
         
-        if (!confirm('❌ ¿Eliminar carpeta y subcarpetas?')) return;
+        if (!confirm('❌ ¿Eliminar carpeta y subcarpetas?\n\nLas fotos NO se eliminarán, se moverán a la raíz.')) return;
         
         var folderId = $(this).data('id');
         
@@ -369,6 +562,9 @@ jQuery(document).ready(function($) {
                     updateCurrentFolderInfo();
                     loadFolders();
                     loadPhotos();
+                    alert('✅ Carpeta eliminada');
+                } else {
+                    alert('❌ ' + (response.data || 'Error al eliminar carpeta'));
                 }
             }
         });
@@ -389,8 +585,8 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 console.log('📷 Fotos recibidas:', response);
-                if (response.success) {
-                    displayPhotos(response.data);
+                if (response.success && response.data) {
+                    displayPhotos(response.data.photos || response.data);
                 }
             }
         });
@@ -408,7 +604,7 @@ jQuery(document).ready(function($) {
         updateBulkActionsBar();
         
         if (!photos || photos.length === 0) {
-            grid.html('<p style="grid-column: 1/-1; text-align: center; padding: 40px;">No hay fotos.</p>');
+            grid.html('<p style="grid-column: 1/-1; text-align: center; padding: 40px;">No hay fotos en esta carpeta.</p>');
             return;
         }
         
@@ -418,7 +614,7 @@ jQuery(document).ready(function($) {
             var photoHtml = '<div class="photo-item" data-id="' + photo.id + '">' +
                 '<input type="checkbox" class="photo-checkbox" data-id="' + photo.id + '">' +
                 '<button class="delete-photo" data-id="' + photo.id + '">✕</button>' +
-                '<img src="' + photo.image_url + '">' +
+                '<img src="' + photo.image_url + '" alt="' + photo.photo_id + '">' +
                 '<div class="photo-info">' +
                 folderTag +
                 '<span class="photo-id">#' + photo.photo_id + '</span>' +
@@ -486,7 +682,7 @@ jQuery(document).ready(function($) {
         }
         
         var count = selectedPhotos.length;
-        if (!confirm('❌ ¿Eliminar ' + count + ' foto(s) seleccionadas?')) {
+        if (!confirm('❌ ¿Eliminar ' + count + ' foto(s) seleccionadas?\n\nEsta acción no se puede deshacer.')) {
             return;
         }
         
@@ -509,11 +705,11 @@ jQuery(document).ready(function($) {
                     selectedPhotos = [];
                     updateBulkActionsBar();
                 } else {
-                    alert('❌ Error: ' + response.data);
+                    alert('❌ Error: ' + (response.data || 'Error desconocido'));
                 }
             },
             error: function() {
-                alert('❌ Error al eliminar fotos');
+                alert('❌ Error de conexión al eliminar fotos');
             },
             complete: function() {
                 btn.prop('disabled', false).text('🗑️ Eliminar seleccionadas');
@@ -525,7 +721,7 @@ jQuery(document).ready(function($) {
      * Eliminar foto individual
      */
     $(document).on('click', '.delete-photo', function() {
-        if (!confirm('❌ ¿Eliminar foto?')) return;
+        if (!confirm('❌ ¿Eliminar esta foto?\n\nEsta acción no se puede deshacer.')) return;
         
         var dbId = $(this).data('id');
         var photoItem = $(this).closest('.photo-item');
@@ -542,8 +738,14 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     photoItem.fadeOut(300, function() {
                         $(this).remove();
+                        // Si no quedan fotos, mostrar mensaje
+                        if ($('.photo-item').length === 0) {
+                            $('#photos-grid').html('<p style="grid-column: 1/-1; text-align: center; padding: 40px;">No hay fotos en esta carpeta.</p>');
+                        }
                     });
                     loadFolders();
+                } else {
+                    alert('❌ ' + (response.data || 'Error al eliminar foto'));
                 }
             }
         });
