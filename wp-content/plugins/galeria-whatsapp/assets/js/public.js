@@ -46,6 +46,11 @@ jQuery(document).ready(function($) {
      * Cargar fotos
      */
     function loadPhotos(folderId) {
+        // Limpiar búsqueda activa al cargar nuevas fotos
+        if (isSearchActive) {
+            clearSearch();
+        }
+        
         var requestData = {
             action: 'get_gallery_photos'
         };
@@ -147,6 +152,11 @@ jQuery(document).ready(function($) {
         var grid = $('#galeria-grid');
         grid.empty();
         
+        // Limpiar búsqueda activa al mostrar nuevas fotos
+        if (isSearchActive) {
+            clearSearch();
+        }
+        
         if (!photos || photos.length === 0) {
             grid.html('<p class="no-photos">📷 No hay fotos disponibles.</p>');
             return;
@@ -191,9 +201,19 @@ jQuery(document).ready(function($) {
     /**
      * Buscar foto
      */
+    var isSearchActive = false;
+    var allPhotos = [];
+    
     $('#galeria-search-btn').click(searchPhoto);
     $('#galeria-search-input').keypress(function(e) {
         if (e.which === 13) searchPhoto();
+    });
+    
+    // Limpiar búsqueda cuando el input esté vacío
+    $('#galeria-search-input').on('input', function() {
+        if ($(this).val().trim() === '' && isSearchActive) {
+            clearSearch();
+        }
     });
     
     function searchPhoto() {
@@ -203,24 +223,93 @@ jQuery(document).ready(function($) {
             return;
         }
         
+        // Guardar todas las fotos si es la primera búsqueda
+        if (!isSearchActive) {
+            allPhotos = $('.galeria-item').map(function() {
+                return {
+                    element: $(this),
+                    photoId: $(this).data('photo-id')
+                };
+            }).get();
+        }
+        
+        isSearchActive = true;
         $('.galeria-item').removeClass('highlight');
         $('.no-results').remove();
+        $('.clear-search-btn').remove();
         
-        var found = false;
-        $('.galeria-item').each(function() {
-            var photoId = $(this).data('photo-id');
-            if (photoId == searchId || String(photoId).includes(searchId)) {
-                found = true;
-                $(this).show().addClass('highlight');
-                $('html, body').animate({
-                    scrollTop: $(this).offset().top - 100
-                }, 500);
-                return false;
+        var foundPhotos = [];
+        var searchTerm = String(searchId).toLowerCase().trim();
+        
+        // Primero buscar coincidencias exactas
+        allPhotos.forEach(function(photo) {
+            var photoId = String(photo.photoId).toLowerCase();
+            
+            // Coincidencia exacta (case-insensitive)
+            if (photoId === searchTerm) {
+                foundPhotos.push({
+                    element: photo.element,
+                    photoId: photo.photoId,
+                    matchType: 'exact'
+                });
             }
         });
         
-        if (!found) {
-            $('#galeria-grid').before('<p class="no-results">❌ No se encontró #' + searchId + '</p>');
+        // Si no hay coincidencias exactas, buscar coincidencias parciales
+        if (foundPhotos.length === 0) {
+            allPhotos.forEach(function(photo) {
+                var photoId = String(photo.photoId).toLowerCase();
+                
+                // Coincidencia parcial (solo si el término de búsqueda tiene al menos 3 caracteres)
+                if (searchTerm.length >= 3 && photoId.includes(searchTerm)) {
+                    foundPhotos.push({
+                        element: photo.element,
+                        photoId: photo.photoId,
+                        matchType: 'partial'
+                    });
+                }
+            });
         }
+        
+        // Ocultar todas las fotos primero
+        allPhotos.forEach(function(photo) {
+            photo.element.hide().removeClass('highlight');
+        });
+        
+        // Mostrar solo las fotos encontradas
+        if (foundPhotos.length > 0) {
+            foundPhotos.forEach(function(found) {
+                found.element.show().addClass('highlight');
+            });
+            
+            // Agregar botón para limpiar búsqueda
+            var clearBtn = $('<button class="clear-search-btn" style="display: block; margin: 20px auto; padding: 12px 30px; background: #2271b1; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px;">↩️ Mostrar todas las fotos</button>');
+            clearBtn.click(function() {
+                clearSearch();
+            });
+            $('#galeria-grid').after(clearBtn);
+            
+            // Scroll a la primera foto encontrada
+            if (foundPhotos[0] && foundPhotos[0].element.length) {
+                $('html, body').animate({
+                    scrollTop: foundPhotos[0].element.offset().top - 100
+                }, 500);
+            }
+        } else {
+            // Mostrar todas las fotos si no se encontró nada
+            allPhotos.forEach(function(photo) {
+                photo.element.show();
+            });
+            $('#galeria-grid').before('<p class="no-results">❌ No se encontró #' + searchId + '</p>');
+            isSearchActive = false;
+        }
+    }
+    
+    function clearSearch() {
+        isSearchActive = false;
+        $('#galeria-search-input').val('');
+        $('.galeria-item').removeClass('highlight').show();
+        $('.no-results').remove();
+        $('.clear-search-btn').remove();
     }
 });
