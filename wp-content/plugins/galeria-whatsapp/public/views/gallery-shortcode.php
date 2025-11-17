@@ -11,9 +11,12 @@ if (!defined('ABSPATH')) {
 ?>
 
 <div class="galeria-whatsapp-frontend">
-    <!-- Buscador -->
-    <div class="galeria-search-section">
-        <h3>🔍 Buscar foto por número</h3>
+    <!-- Encabezado compacto con título y buscador -->
+    <div class="galeria-header">
+        <div class="galeria-header-text">
+            <h2>📸 Galería de Fotos</h2>
+            <p>Ingresa el número para encontrar una foto específica</p>
+        </div>
         <div class="galeria-search-box">
             <input type="text" id="galeria-search-input" placeholder="Ejemplo: 20251104-001">
             <button id="galeria-search-btn">Buscar</button>
