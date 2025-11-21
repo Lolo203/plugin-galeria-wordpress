@@ -1,6 +1,7 @@
 /**
- * JavaScript del Frontend
+ * JavaScript del Frontend - Botones siempre visibles
  * @package Galeria_WhatsApp
+ * @version 2.5.0
  */
 
 jQuery(document).ready(function($) {
@@ -9,8 +10,12 @@ jQuery(document).ready(function($) {
     var currentFolder = 0;
     var currentSubfolders = [];
     var allFolders = [];
+    var isSearchActive = false;
+    var allPhotos = [];
     
-    console.log('🖼️ Galería WhatsApp Frontend v' + galeriaPublic.version);
+    var isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+    
+    console.log('🖼️ Galería WhatsApp Frontend v' + galeriaPublic.version, 'Touch device:', isTouchDevice);
     
     // Inicializar
     loadFolders();
@@ -43,7 +48,7 @@ jQuery(document).ready(function($) {
     }
     
     /**
-     * Cargar fotos
+     * Cargar fotos - CORREGIDO: Ahora hace AJAX real
      */
     function loadPhotos(folderId) {
         // Limpiar búsqueda activa al cargar nuevas fotos
@@ -51,31 +56,68 @@ jQuery(document).ready(function($) {
             clearSearch();
         }
         
+        // Mostrar indicador de carga
+        $('#galeria-grid').html('<div class="loading-spinner">⏳ Cargando fotos...</div>');
+        
         var requestData = {
             action: 'get_gallery_photos'
         };
         
         // Si hay carpeta específica, incluir subcarpetas
         if (folderId && folderId > 0) {
+            console.log('📂 Solicitando fotos de carpeta:', folderId);
             requestData.folder_id = folderId;
             requestData.include_subfolders = true;
+        } else {
+            console.log('📂 Solicitando todas las fotos');
         }
         
         $.ajax({
             url: galeriaPublic.ajaxUrl,
             type: 'POST',
             data: requestData,
+            timeout: 20000,
+            dataType: 'json',
+            cache: false,
             success: function(response) {
-                console.log('📷 Fotos cargadas:', response);
-                if (response.success && response.data) {
-                    displayPhotos(response.data);
+                console.log('📷 Fotos recibidas:', response);
+                if (response && response.success && response.data) {
+                    // Asegurar que data es un array
+                    var photosData = Array.isArray(response.data) ? response.data : (response.data.photos || []);
+                    console.log('✅ Mostrando', photosData.length, 'fotos');
+                    displayPhotos(photosData);
                 } else {
-                    $('#galeria-grid').html('<p class="no-photos">📷 No hay fotos disponibles.</p>');
+                    var errorMsg = response && response.data ? response.data : 'No se recibieron datos válidos';
+                    console.error('❌ Error en la respuesta:', errorMsg);
+                    $('#galeria-grid').html('<p class="error-msg">❌ Error: ' + errorMsg + '</p>');
                 }
             },
             error: function(xhr, status, error) {
-                console.error('❌ Error cargando fotos:', error);
-                $('#galeria-grid').html('<p class="no-photos">❌ Error al cargar fotos.</p>');
+                var errorMsg = 'Error al cargar las fotos. ';
+                if (status === 'timeout') {
+                    errorMsg += 'La solicitud ha tardado demasiado tiempo.';
+                } else if (status === 'error') {
+                    errorMsg += 'Error de conexión: ' + error;
+                } else if (status === 'parsererror') {
+                    errorMsg += 'Error al procesar la respuesta del servidor.';
+                }
+                
+                console.error('❌ Error en la petición AJAX:', {
+                    status: status,
+                    error: error,
+                    responseText: xhr.responseText
+                });
+                
+                $('#galeria-grid').html(
+                    '<div class="error-container">' +
+                    '   <p class="error-msg">' + errorMsg + '</p>' +
+                    '   <button class="retry-btn">🔄 Reintentar</button>' +
+                    '</div>'
+                );
+                
+                $('.retry-btn').on('click', function() {
+                    loadPhotos(folderId);
+                });
             }
         });
     }
@@ -146,31 +188,38 @@ jQuery(document).ready(function($) {
     }
     
     /**
-     * Mostrar fotos
+     * Mostrar fotos en la galería
      */
     function displayPhotos(photos) {
         var grid = $('#galeria-grid');
         grid.empty();
         
-        // Limpiar búsqueda activa al mostrar nuevas fotos
+        // Limpiar búsqueda activa
         if (isSearchActive) {
             clearSearch();
         }
         
         if (!photos || photos.length === 0) {
-            grid.html('<p class="no-photos">📷 No hay fotos disponibles.</p>');
+            grid.html('<p class="no-photos">📷 No hay fotos disponibles en esta carpeta.</p>');
             return;
         }
+        
+        console.log('📷 Mostrando', photos.length, 'fotos');
+        
+        // Guardar todas las fotos para búsqueda
+        allPhotos = photos;
         
         photos.forEach(function(photo) {
             var whatsappUrl = 'https://wa.me/' + galeriaPublic.whatsappNumber + '?text=' + 
                 encodeURIComponent(galeriaPublic.whatsappMessage.replace('%s', photo.photo_id));
-            var folderLabel = photo.folder_name ? photo.folder_name : 'Sin carpeta';
+            
+            var folderLabel = photo.folder_path || photo.folder_name || 'Sin carpeta';
             var formattedDate = '';
+            
             if (photo.upload_date) {
                 var dateObj = new Date(photo.upload_date);
                 if (!isNaN(dateObj)) {
-                    formattedDate = dateObj.toLocaleDateString(undefined, {
+                    formattedDate = dateObj.toLocaleDateString('es-ES', {
                         day: '2-digit',
                         month: 'short',
                         year: 'numeric'
@@ -178,64 +227,102 @@ jQuery(document).ready(function($) {
                 }
             }
             
-            var photoHtml = '<div class="galeria-item" data-photo-id="' + photo.photo_id + '" data-folder="' + (photo.folder_id || 0) + '">' +
-                '<div class="galeria-image-wrapper">' +
-                '<img src="' + photo.image_url + '" alt="Foto ' + photo.photo_id + '">' +
-                '<div class="galeria-overlay">' +
-                '<div class="galeria-id-row">' +
-                '<span class="galeria-id">' + photo.photo_id + '</span>' +
-                '<button class="galeria-copy-btn" data-photo-id="' + photo.photo_id + '">Copiar ID</button>' +
-                '</div>' +
-                '<a href="' + whatsappUrl + '" target="_blank" class="galeria-whatsapp-btn">' +
-                '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">' +
-                '<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>' +
-                '</svg> Consultar</a>' +
-                '</div></div>' +
-                '<div class="galeria-meta">' +
-                '<div class="galeria-meta-left">' +
-                '<span class="galeria-folder-tag">📁 ' + folderLabel + '</span>' +
-                (formattedDate ? '<span class="galeria-date">' + formattedDate + '</span>' : '') +
-                '</div>' +
+            // HTML de la tarjeta - Botones fuera del overlay
+            var photoHtml = 
+                '<div class="galeria-item" data-photo-id="' + photo.photo_id + '" data-folder="' + (photo.folder_id || 0) + '">' +
+                    // Imagen con overlay (solo ID)
+                    '<div class="galeria-image-wrapper">' +
+                        '<img src="' + photo.image_url + '" alt="Foto ' + photo.photo_id + '" loading="lazy" />' +
+                        '<div class="galeria-overlay">' +
+                            '<span class="galeria-id">#' + photo.photo_id + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                    // Info de carpeta y fecha
+                    '<div class="galeria-meta">' +
+                        '<div class="galeria-meta-left">' +
+                            '<span class="galeria-folder-tag">📁 ' + folderLabel + '</span>' +
+                            (formattedDate ? '<span class="galeria-date">📅 ' + formattedDate + '</span>' : '') +
+                        '</div>' +
+                    '</div>' +
+                    // Botones siempre visibles
+                    '<div class="galeria-buttons-row">' +
+                        '<button class="galeria-copy-btn" data-photo-id="' + photo.photo_id + '" type="button">' +
+                            '📋 Copiar ID' +
+                        '</button>' +
+                        '<a href="' + whatsappUrl + '" target="_blank" rel="noopener noreferrer" class="galeria-whatsapp-btn">' +
+                            '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">' +
+                                '<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>' +
+                            '</svg>' +
+                            ' Consultar' +
+                        '</a>' +
+                    '</div>' +
                 '</div>';
             
             grid.append(photoHtml);
         });
         
-        // Copiar ID
+        // Inicializar botones de copiar
+        initCopyButtons();
+    }
+    
+    /**
+     * Inicializar botones de copiar ID
+     */
+    function initCopyButtons() {
         $(document).off('click', '.galeria-copy-btn').on('click', '.galeria-copy-btn', function(e) {
             e.preventDefault();
-            var btn = $(this);
-            var photoId = btn.data('photo-id');
+            e.stopPropagation();
             
-            function showCopied() {
-                var originalText = btn.text();
-                btn.text('Copiado ✅').addClass('copied');
-                setTimeout(function() {
-                    btn.text('Copiar ID').removeClass('copied');
-                }, 1500);
-            }
+            var photoId = $(this).data('photo-id');
+            var button = $(this);
+            var originalText = button.html();
             
+            console.log('📋 Copiando ID:', photoId);
+            
+            // Copiar al portapapeles
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(photoId).then(showCopied).catch(function() {
-                    fallbackCopy(photoId, btn, showCopied);
+                navigator.clipboard.writeText(photoId).then(function() {
+                    button.html('✓ Copiado').addClass('copied');
+                    setTimeout(function() {
+                        button.html(originalText).removeClass('copied');
+                    }, 2000);
+                }).catch(function(err) {
+                    console.error('Error al copiar:', err);
+                    fallbackCopy(photoId, button, originalText);
                 });
             } else {
-                fallbackCopy(photoId, btn, showCopied);
+                fallbackCopy(photoId, button, originalText);
             }
         });
     }
     
-    function fallbackCopy(text, btn, callback) {
-        var tempInput = $('<input>');
+    /**
+     * Fallback para copiar al portapapeles (navegadores antiguos)
+     */
+    function fallbackCopy(text, button, originalText) {
+        var tempInput = $('<input>').val(text).css({
+            position: 'absolute',
+            left: '-9999px'
+        });
         $('body').append(tempInput);
-        tempInput.val(text).select();
-        document.execCommand('copy');
+        tempInput.select();
+        
+        try {
+            document.execCommand('copy');
+            button.html('✓ Copiado').addClass('copied');
+            setTimeout(function() {
+                button.html(originalText).removeClass('copied');
+            }, 2000);
+        } catch (err) {
+            console.error('Error al copiar:', err);
+            alert('No se pudo copiar. ID: ' + text);
+        }
+        
         tempInput.remove();
-        if (callback) callback();
     }
     
     /**
-     * Click en filtro de carpeta
+     * Click en filtro de carpeta - CORREGIDO: Ahora hace loadPhotos real
      */
     $(document).on('click', '.galeria-folder-btn', function() {
         $('.galeria-folder-btn').removeClass('active');
@@ -247,44 +334,40 @@ jQuery(document).ready(function($) {
         
         console.log('📂 Filtrar carpeta:', currentFolder, 'Subcarpetas:', currentSubfolders);
         
-        // Recargar fotos según la carpeta seleccionada
+        // CORREGIDO: Hacer AJAX real en lugar de filtrar local
         loadPhotos(currentFolder);
     });
     
     /**
-     * Buscar foto
+     * Búsqueda de fotos
      */
-    var isSearchActive = false;
-    var allPhotos = [];
+    $('#galeria-search-btn').on('click', searchPhoto);
     
-    $('#galeria-search-btn').click(searchPhoto);
-    $('#galeria-search-input').keypress(function(e) {
-        if (e.which === 13) searchPhoto();
+    $('#galeria-search-input').on('keypress', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            searchPhoto();
+        }
     });
     
-    // Limpiar búsqueda cuando el input esté vacío
     $('#galeria-search-input').on('input', function() {
         if ($(this).val().trim() === '' && isSearchActive) {
             clearSearch();
         }
     });
     
+    /**
+     * Buscar foto por ID
+     */
     function searchPhoto() {
         var searchId = $('#galeria-search-input').val().trim();
+        
         if (!searchId) {
-            alert('⚠️ Ingresa un número');
+            alert('⚠️ Por favor ingresa un número de foto');
             return;
         }
         
-        // Guardar todas las fotos si es la primera búsqueda
-        if (!isSearchActive) {
-            allPhotos = $('.galeria-item').map(function() {
-                return {
-                    element: $(this),
-                    photoId: $(this).data('photo-id')
-                };
-            }).get();
-        }
+        console.log('🔍 Buscando:', searchId);
         
         isSearchActive = true;
         $('.galeria-item').removeClass('highlight');
@@ -294,71 +377,59 @@ jQuery(document).ready(function($) {
         var foundPhotos = [];
         var searchTerm = String(searchId).toLowerCase().trim();
         
-        // Primero buscar coincidencias exactas
-        allPhotos.forEach(function(photo) {
-            var photoId = String(photo.photoId).toLowerCase();
-            
-            // Coincidencia exacta (case-insensitive)
+        // Buscar coincidencias exactas primero
+        $('.galeria-item').each(function() {
+            var photoId = String($(this).data('photo-id')).toLowerCase();
             if (photoId === searchTerm) {
-                foundPhotos.push({
-                    element: photo.element,
-                    photoId: photo.photoId,
-                    matchType: 'exact'
-                });
+                foundPhotos.push($(this));
             }
         });
         
-        // Si no hay coincidencias exactas, buscar coincidencias parciales
-        if (foundPhotos.length === 0) {
-            allPhotos.forEach(function(photo) {
-                var photoId = String(photo.photoId).toLowerCase();
-                
-                // Coincidencia parcial (solo si el término de búsqueda tiene al menos 3 caracteres)
-                if (searchTerm.length >= 3 && photoId.includes(searchTerm)) {
-                    foundPhotos.push({
-                        element: photo.element,
-                        photoId: photo.photoId,
-                        matchType: 'partial'
-                    });
+        // Si no hay exactas, buscar parciales (mínimo 3 caracteres)
+        if (foundPhotos.length === 0 && searchTerm.length >= 3) {
+            $('.galeria-item').each(function() {
+                var photoId = String($(this).data('photo-id')).toLowerCase();
+                if (photoId.includes(searchTerm)) {
+                    foundPhotos.push($(this));
                 }
             });
         }
         
-        // Ocultar todas las fotos primero
-        allPhotos.forEach(function(photo) {
-            photo.element.hide().removeClass('highlight');
-        });
+        // Ocultar todas las fotos
+        $('.galeria-item').hide();
         
-        // Mostrar solo las fotos encontradas
+        // Mostrar solo las encontradas
         if (foundPhotos.length > 0) {
-            foundPhotos.forEach(function(found) {
-                found.element.show().addClass('highlight');
+            console.log('✅ Encontradas', foundPhotos.length, 'fotos');
+            
+            foundPhotos.forEach(function(item) {
+                item.show().addClass('highlight');
             });
             
-            // Agregar botón para limpiar búsqueda
-            var clearBtn = $('<button class="clear-search-btn" style="display: block; margin: 20px auto; padding: 12px 30px; background: #2271b1; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px;">↩️ Mostrar todas las fotos</button>');
-            clearBtn.click(function() {
-                clearSearch();
-            });
+            // Botón para limpiar búsqueda
+            var clearBtn = $('<button class="clear-search-btn">↩️ Mostrar todas las fotos</button>');
+            clearBtn.on('click', clearSearch);
             $('#galeria-grid').after(clearBtn);
             
             // Scroll a la primera foto encontrada
-            if (foundPhotos[0] && foundPhotos[0].element.length) {
+            if (foundPhotos[0]) {
                 $('html, body').animate({
-                    scrollTop: foundPhotos[0].element.offset().top - 100
+                    scrollTop: foundPhotos[0].offset().top - 100
                 }, 500);
             }
         } else {
-            // Mostrar todas las fotos si no se encontró nada
-            allPhotos.forEach(function(photo) {
-                photo.element.show();
-            });
-            $('#galeria-grid').before('<p class="no-results">❌ No se encontró #' + searchId + '</p>');
+            console.log('❌ No se encontraron fotos');
+            $('.galeria-item').show();
+            $('#galeria-grid').before('<p class="no-results">❌ No se encontró la foto con ID: <strong>' + searchId + '</strong></p>');
             isSearchActive = false;
         }
     }
     
+    /**
+     * Limpiar búsqueda
+     */
     function clearSearch() {
+        console.log('🧹 Limpiando búsqueda');
         isSearchActive = false;
         $('#galeria-search-input').val('');
         $('.galeria-item').removeClass('highlight').show();

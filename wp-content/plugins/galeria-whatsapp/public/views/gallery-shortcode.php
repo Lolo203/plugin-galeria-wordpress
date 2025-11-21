@@ -1,8 +1,9 @@
 <?php
 /**
- * Template del shortcode de galería
+ * Template del shortcode de galería - Botones fuera del overlay
  *
  * @package Galeria_WhatsApp
+ * @version 3.2.1
  */
 
 if (!defined('ABSPATH')) {
@@ -11,15 +12,17 @@ if (!defined('ABSPATH')) {
 ?>
 
 <div class="galeria-whatsapp-frontend">
-    <!-- Encabezado compacto con título y buscador -->
+    <!-- Encabezado -->
     <div class="galeria-header">
         <div class="galeria-header-text">
             <h2>📸 Galería de Fotos</h2>
-            <p>Ingresa el número para encontrar una foto específica</p>
+            <p>Busca y consulta nuestras fotos disponibles</p>
         </div>
+        
+        <!-- Buscador -->
         <div class="galeria-search-box">
-            <input type="text" id="galeria-search-input" placeholder="Ejemplo: 20251104-001">
-            <button id="galeria-search-btn">Buscar</button>
+            <input type="text" id="galeria-search-input" placeholder="Buscar por ID o nombre...">
+            <button id="galeria-search-btn">🔍 Buscar</button>
         </div>
     </div>
     
@@ -30,6 +33,6 @@ if (!defined('ABSPATH')) {
     
     <!-- Grid de fotos -->
     <div class="galeria-grid" id="galeria-grid">
-        <p style="text-align: center; padding: 40px; color: #666;">Cargando fotos...</p>
+        <p style="text-align: center; padding: 40px; color: #666;">⏳ Cargando fotos...</p>
     </div>
 </div>
