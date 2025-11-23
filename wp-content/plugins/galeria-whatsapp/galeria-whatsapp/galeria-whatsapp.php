@@ -131,10 +131,12 @@ class Galeria_WhatsApp {
 
 /**
  * Iniciar el plugin
+ * Se ejecuta temprano para asegurar que las acciones AJAX se registren correctamente
  */
 function galeria_whatsapp_init() {
     return Galeria_WhatsApp::get_instance();
 }
 
-// Ejecutar el plugin
+// Ejecutar el plugin inmediatamente para asegurar que las acciones AJAX se registren
+// Esto es especialmente importante para peticiones AJAX públicas
 galeria_whatsapp_init();

@@ -18,15 +18,19 @@ class Galeria_WhatsApp_Admin_Ajax {
         $this->photo_manager = new Galeria_WhatsApp_Photo_Manager();
         $this->folder_manager = new Galeria_WhatsApp_Folder_Manager();
         
-        // AJAX handlers
+        // AJAX handlers - Solo registrar acciones específicas del admin
+        // Las acciones get_gallery_photos y get_gallery_folders se manejan en el frontend público
         add_action('wp_ajax_upload_gallery_photo', array($this, 'upload_photo'));
-        add_action('wp_ajax_get_gallery_photos', array($this, 'get_photos'));
         add_action('wp_ajax_delete_gallery_photo', array($this, 'delete_photo'));
         add_action('wp_ajax_delete_multiple_gallery_photos', array($this, 'delete_multiple_photos'));
         add_action('wp_ajax_create_gallery_folder', array($this, 'create_folder'));
-        add_action('wp_ajax_get_gallery_folders', array($this, 'get_folders'));
         add_action('wp_ajax_delete_gallery_folder', array($this, 'delete_folder'));
         add_action('wp_ajax_validate_upload', array($this, 'validate_upload'));
+        
+        // Registrar get_gallery_photos y get_gallery_folders solo si viene del admin (con nonce)
+        // Usar prioridad baja para que las acciones públicas tengan prioridad
+        add_action('wp_ajax_get_gallery_photos', array($this, 'get_photos'), 99);
+        add_action('wp_ajax_get_gallery_folders', array($this, 'get_folders'), 99);
     }
     
     /**
@@ -130,12 +134,16 @@ class Galeria_WhatsApp_Admin_Ajax {
     }
     
     /**
-     * Obtener fotos
+     * Obtener fotos (solo para admin)
      */
     public function get_photos() {
+        // Solo procesar si viene del admin (tiene nonce válido)
+        // Si no tiene nonce, dejar que la acción pública lo maneje
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'galeria_nonce')) {
+            return; // Dejar que la acción pública lo maneje
+        }
+        
         try {
-            check_ajax_referer('galeria_nonce', 'nonce');
-            
             if (!current_user_can('manage_options')) {
                 throw new Exception('Permisos insuficientes');
             }
@@ -152,7 +160,7 @@ class Galeria_WhatsApp_Admin_Ajax {
             ));
             
         } catch (Exception $e) {
-            error_log('Galería WhatsApp - Error en get_photos: ' . $e->getMessage());
+            error_log('Galería WhatsApp - Error en get_photos (admin): ' . $e->getMessage());
             wp_send_json_error($e->getMessage());
         }
     }
@@ -292,10 +300,17 @@ class Galeria_WhatsApp_Admin_Ajax {
     /**
      * Obtener carpetas
      */
+    /**
+     * Obtener carpetas (solo para admin)
+     */
     public function get_folders() {
+        // Solo procesar si viene del admin (tiene nonce válido)
+        // Si no tiene nonce, dejar que la acción pública lo maneje
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'galeria_nonce')) {
+            return; // Dejar que la acción pública lo maneje
+        }
+        
         try {
-            check_ajax_referer('galeria_nonce', 'nonce');
-            
             if (!current_user_can('manage_options')) {
                 throw new Exception('Permisos insuficientes');
             }
@@ -308,7 +323,7 @@ class Galeria_WhatsApp_Admin_Ajax {
             ));
             
         } catch (Exception $e) {
-            error_log('Galería WhatsApp - Error en get_folders: ' . $e->getMessage());
+            error_log('Galería WhatsApp - Error en get_folders (admin): ' . $e->getMessage());
             wp_send_json_error($e->getMessage());
         }
     }

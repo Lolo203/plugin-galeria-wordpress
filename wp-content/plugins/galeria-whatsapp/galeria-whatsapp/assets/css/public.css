@@ -493,11 +493,17 @@ body .galeria-whatsapp-frontend {
         max-height: 350px;
     }
     
-    /* Overlay móvil - SIEMPRE VISIBLE */
+    /* Overlay móvil - OCULTO por defecto, se muestra al tocar */
     .galeria-overlay {
-        opacity: 1 !important;
+        opacity: 0 !important;
         background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 60%);
         padding: 10px;
+        pointer-events: auto;
+    }
+    
+    /* Mostrar overlay cuando se toca la imagen en móvil */
+    .galeria-item.touched .galeria-overlay {
+        opacity: 1 !important;
     }
     
     .galeria-overlay .galeria-id {

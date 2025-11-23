@@ -31,9 +31,11 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'get_gallery_folders'
             },
+            dataType: 'json',
+            cache: false,
             success: function(response) {
                 console.log('📂 Carpetas cargadas:', response);
-                if (response.success && response.data) {
+                if (response && response.success && response.data) {
                     allFolders = response.data;
                     displayFolders(response.data);
                 } else {
@@ -41,7 +43,12 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function(xhr, status, error) {
-                console.error('❌ Error cargando carpetas:', error);
+                console.error('❌ Error cargando carpetas:', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    error: error,
+                    responseText: xhr.responseText.substring(0, 200)
+                });
                 $('#galeria-folder-filter').html('');
             }
         });
@@ -263,6 +270,9 @@ jQuery(document).ready(function($) {
         
         // Inicializar botones de copiar
         initCopyButtons();
+        
+        // Inicializar manejo de toques en móviles para mostrar/ocultar ID
+        initMobileTouchHandlers();
     }
     
     /**
@@ -319,6 +329,49 @@ jQuery(document).ready(function($) {
         }
         
         tempInput.remove();
+    }
+    
+    /**
+     * Inicializar manejo de toques en móviles para mostrar/ocultar ID
+     */
+    function initMobileTouchHandlers() {
+        // Solo aplicar en dispositivos táctiles
+        if (!isTouchDevice) {
+            return;
+        }
+        
+        // Función para toggle el overlay
+        function toggleOverlay($item) {
+            if ($item.hasClass('touched')) {
+                $item.removeClass('touched');
+            } else {
+                // Ocultar otros items que estén tocados
+                $('.galeria-item').removeClass('touched');
+                // Mostrar este item
+                $item.addClass('touched');
+            }
+        }
+        
+        // Usar solo 'click' que funciona bien en móviles modernos y no necesita preventDefault
+        // El evento 'click' se dispara después de touchstart+touchend en móviles
+        $(document).off('click', '.galeria-image-wrapper').on('click', '.galeria-image-wrapper', function(e) {
+            e.stopPropagation();
+            
+            var $item = $(this).closest('.galeria-item');
+            toggleOverlay($item);
+        });
+        
+        // Para touchstart, usar addEventListener nativo con { passive: false } solo si necesitamos prevenir scroll
+        // Pero en este caso, no necesitamos prevenir nada, solo queremos detectar el toque
+        // Así que usamos una solución más simple: solo usar click que ya funciona bien
+        
+        // Ocultar overlay al tocar fuera de la imagen
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('.galeria-image-wrapper').length && 
+                !$(e.target).closest('.galeria-overlay').length) {
+                $('.galeria-item').removeClass('touched');
+            }
+        });
     }
     
     /**
